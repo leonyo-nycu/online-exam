@@ -5,11 +5,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>線上考卷作答工具</title>
 <style>
-    /* ... (其他 CSS 樣式保持不變) ... */
+    /* 確保所有元素從邊緣開始，並清除瀏覽器預設樣式 */
+    body, html {
+        margin: 0;
+        padding: 0;
+        touch-action: pan-x pan-y; 
+        width: 100%;
+        min-height: 100vh;
+        background-color: #f0f0f0;
+    }
+
+    /* 1. 容器樣式 */
+    #whiteboard-container {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        
+        width: 98%; 
+        max-width: 100%;
+        /* 【！！！新增：最小寬度限制！！！】 */
+        min-width: 98vw; /* 讓考卷最小不會小於視窗寬度的 98% */
+        margin: 20px auto; 
+        
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    /* 2. 繪圖區域包裝器 (保持不變) */
+    #canvas-wrapper {
+        position: relative; 
+        width: 100%; 
+        max-width: 100%;
+        overflow: hidden; 
+        border: 1px solid #333; 
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        background-color: #fff;
+    }
+
+    /* 3. 背景圖片 (保持不變) */
+    #wb-background-img {
+        display: block;
+        width: 100%; 
+        height: auto;
+    }
+
+    /* 4. Canvas (保持不變) */
+    #wb-canvas {
+        position: absolute; 
+        top: 0;
+        left: 0;
+        width: 100%; 
+        height: 100%; 
+        display: block;
+        cursor: crosshair;
+        background-color: transparent; 
+        z-index: 5; 
+    }
 
     /* 5. 控制項懸浮區 */
     #wb-controls {
-        position: absolute; 
+        /* 保持 fixed 定位，相對於視窗 */
+        position: fixed; 
         top: 10px;
         left: 10px;
         z-index: 10; 
@@ -25,20 +81,26 @@
         align-items: center;
         user-select: none; 
 
-        /* 【！！！核心修正點：抵消瀏覽器縮放！！！】 */
-        /*
-         * 我們不能直接使用 transform: scale(1/zoom-level)，
-         * 但可以嘗試使用 fixed 屬性來分離它。
-         */
-        position: fixed; /* 將定位從 relative 變為 fixed，這樣它就不會被頁面內容的尺寸影響 */
-        /* 【！！！注意：position: fixed 後，top/left 都是相對於瀏覽器視窗！！！】 */
+        /* 【！！！核心修正點：抵消縮放！！！】 */
+        /* 使用 VW 單位定義控制項大小，使其不受瀏覽器縮放比例的影響 */
+        /* 雖然效果不完美，但比 JS 計算更穩定 */
+        font-size: 1.5vw; 
+        padding: 0.8vw 1.2vw;
+        border-radius: 0.8vw;
     }
     
-    /* 6. 控制項美化 */
+    /* 6. 控制項美化 (使用 VW 單位) */
     #wb-controls input[type="color"] {
-        /* ... 保持不變 ... */
+        width: 3vw; height: 3vw; padding: 0; border: none; 
+        margin-right: 1.5vw; vertical-align: middle; cursor: pointer;
     }
-    /* ... (其他控制項樣式保持不變) ... */
+    #wb-controls input[type="range"] {
+        width: 8vw; margin-right: 1.5vw; vertical-align: middle;
+    }
+    #wb-controls button {
+        padding: 0.6vw 1vw; margin-left: 1vw; border: 1px solid #ccc;
+        background-color: #e9e9e9; border-radius: 0.4vw; cursor: pointer; font-size: 1.2vw;
+    }
 </style>
 </head>
 <body>
@@ -205,6 +267,7 @@
 </body>
 
 </html>
+
 
 
 
