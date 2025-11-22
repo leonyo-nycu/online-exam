@@ -9,7 +9,7 @@
     body, html {
         margin: 0;
         padding: 0;
-        /* 核心修正點：允許縮放 */
+        /* 核心：允許縮放 */
         touch-action: pan-x pan-y; 
         width: 100%;
         min-height: 100vh;
@@ -22,15 +22,16 @@
         justify-content: center;
         align-items: flex-start;
         
-        width: 98%; /* 避免極端寬度 */
+        /* 簡單、穩定的最大寬度設定，確保居中 */
+        width: 98%; 
         max-width: 100%;
-        margin: 20px auto; /* 居中 */
+        margin: 20px auto; 
         
         padding: 0;
         box-sizing: border-box;
     }
     
-    /* 2. 繪圖區域包裝器 (設置定位和寬度，用於疊加) */
+    /* 2. 繪圖區域包裝器 (這是圖片和 Canvas 的疊加容器) */
     #canvas-wrapper {
         position: relative; 
         width: 100%; 
@@ -41,14 +42,14 @@
         background-color: #fff;
     }
 
-    /* 3. 背景圖片 (底層) */
+    /* 3. 背景圖片 (底層，必須是 block 才能佔據空間) */
     #wb-background-img {
         display: block;
         width: 100%; /* 響應式填滿容器 */
         height: auto;
     }
 
-    /* 4. Canvas (頂層) */
+    /* 4. Canvas (頂層，精確覆蓋圖片) */
     #wb-canvas {
         position: absolute; 
         top: 0;
@@ -101,73 +102,151 @@
 </div>
 
 <script>
-    // ... [所有變數定義保持不變] ...
-
-    const BACKGROUND_IMAGE_URL = '20251122223641558_page-0001.jpg'; 
-    // ... [所有 setCanvasSize, backgroundImg.onload/onerror 保持不變] ...
-
-    // --- 核心修正點：觸控事件處理 ---
-
-    function draw(e) {
-        if (!isDrawing) return; 
+    window.addEventListener('load', function() {
+        const canvas = document.getElementById('wb-canvas');
+        const ctx = canvas.getContext('2d');
+        const backgroundImg = document.getElementById('wb-background-img');
+        const clearButton = document.getElementById('wb-clear');
+        const saveButton = document.getElementById('wb-save');
+        const colorPicker = document.getElementById('wb-color');
+        const lineWidthControl = document.getElementById('wb-width');
         
-        // 修正點 1: 僅在單指觸控移動時阻止預設行為 (繪圖)
-        if (e.touches && e.touches.length === 1) { 
-            e.preventDefault();
-        }
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        // 【！！！確認使用正確的檔名！！！】
+        const BACKGROUND_IMAGE_URL = '20251122223641558_page-0001.jpg'; 
+        // --------------------------------------------------------
         
-        // ... [座標和繪圖邏輯保持不變] ...
-        const { x: currentX, y: currentY, scaleX } = getCoordinated(e);
-        
-        ctx.strokeStyle = colorPicker.value;
-        ctx.lineWidth = lineWidthControl.value * scaleX; 
+        // 將圖片 URL 賦值給 IMG 標籤，啟動載入
+        backgroundImg.src = BACKGROUND_IMAGE_URL; 
 
-        ctx.beginPath();
-        ctx.moveTo(lastX, lastY);
-        ctx.lineTo(currentX, currentY);
-        ctx.stroke();
-
-        lastX = currentX;
-        lastY = currentY;
-    }
-
-    function handleStart(e) {
-        // 修正點 2: 只有單指觸控或滑鼠點擊才算開始繪圖
-        if (e.touches && e.touches.length > 1) {
-            isDrawing = false; // 兩指以上：停止繪圖，讓瀏覽器處理縮放
-            return;
+        function setCanvasSize() {
+            // 確保 Canvas 的繪圖解析度與圖片的原始像素尺寸匹配
+            canvas.width = backgroundImg.naturalWidth;
+            canvas.height = backgroundImg.naturalHeight;
+            
+            // 重設繪圖屬性
+            ctx.strokeStyle = colorPicker.value;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.lineWidth = lineWidthControl.value;
         }
 
-        isDrawing = true;
+        backgroundImg.onload = function() {
+            setCanvasSize();
+            console.log(`圖片載入成功！Canvas 解析度設定為 ${canvas.width}x${canvas.height}`);
+        };
+
+        backgroundImg.onerror = function() {
+            console.error("圖片載入失敗，請檢查檔名。");
+            alert("考卷圖片載入失敗！請確認圖片檔名是否正確。");
+        };
+
+        // --- 核心繪圖函數 ---
+        function getCoordinated(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            let x, y;
+            
+            if (e.touches && e.touches.length > 0) { 
+                x = (e.touches[0].clientX - rect.left) * scaleX;
+                y = (e.touches[0].clientY - rect.top) * scaleY;
+            } else { 
+                x = e.offsetX * scaleX;
+                y = e.offsetY * scaleY;
+            }
+            return { x, y, scaleX };
+        }
+
+        function draw(e) {
+            if (!isDrawing) return; 
+            
+            // 僅在單指觸控移動時阻止預設行為 (繪圖)
+            if (e.touches && e.touches.length === 1) { 
+                e.preventDefault();
+            }
+            
+            const { x: currentX, y: currentY, scaleX } = getCoordinated(e);
+            
+            ctx.strokeStyle = colorPicker.value;
+            ctx.lineWidth = lineWidthControl.value * scaleX; 
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(currentX, currentY);
+            ctx.stroke();
+
+            lastX = currentX;
+            lastY = currentY;
+        }
+
+        function handleStart(e) {
+            // 只有單指觸控或滑鼠點擊才算開始繪圖
+            if (e.touches && e.touches.length > 1) {
+                isDrawing = false; 
+                return;
+            }
+
+            isDrawing = true;
+            
+            // 只有單指觸控時，才阻止預設行為
+            if (e.touches && e.touches.length === 1) e.preventDefault(); 
+
+            const { x, y } = getCoordinated(e);
+            lastX = x;
+            lastY = y;
+        }
+
+        function handleEnd() {
+            isDrawing = false;
+        }
+
+        // 事件監聽
+        canvas.addEventListener('mousedown', handleStart);
+        canvas.addEventListener('touchstart', handleStart, { passive: false });
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('mouseup', handleEnd);
+        canvas.addEventListener('mouseout', handleEnd);
+        canvas.addEventListener('touchend', handleEnd);
+        canvas.addEventListener('touchcancel', handleEnd);
+
+        // --- 控制項功能 (保持不變) ---
+        clearButton.addEventListener('click', () => {
+             ctx.clearRect(0, 0, canvas.width, canvas.height);
+        });
         
-        // 只有單指觸控時，才阻止預設行為
-        if (e.touches && e.touches.length === 1) e.preventDefault(); 
+        saveButton.addEventListener('click', () => {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(backgroundImg, 0, 0, canvas.width, canvas.height);
+            tempCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height);
+            const a = document.createElement('a');
+            a.href = tempCanvas.toDataURL('image/png');
+            a.download = '考卷作答結果.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            tempCanvas.remove();
+        });
 
-        const { x, y } = getCoordinated(e);
-        lastX = x;
-        lastY = y;
-    }
-
-    function handleEnd() {
-        isDrawing = false;
-    }
-
-    // 事件監聽
-    canvas.addEventListener('mousedown', handleStart);
-    // 關鍵：將 passive: false 僅用於 'touchstart' 和 'touchmove' 
-    canvas.addEventListener('touchstart', handleStart, { passive: false });
-    
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('touchmove', draw, { passive: false });
-    
-    canvas.addEventListener('mouseup', handleEnd);
-    canvas.addEventListener('mouseout', handleEnd);
-    canvas.addEventListener('touchend', handleEnd);
-    canvas.addEventListener('touchcancel', handleEnd);
-
-    // ... [所有控制項邏輯保持不變] ...
+        colorPicker.addEventListener('change', (e) => {
+            ctx.strokeStyle = e.target.value;
+        });
+        
+        lineWidthControl.addEventListener('change', (e) => {
+            ctx.lineWidth = e.target.value;
+        });
+    });
 </script>
 </body>
 
 </html>
+
 
